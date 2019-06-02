@@ -1,0 +1,3 @@
+﻿  program.cpp
+c:\users\stara\source\repos\prank\program.cpp(150): warning C4305: '인수': 'double'에서 'const float'(으)로 잘립니다.
+  PRank.vcxproj -> C:\Users\stara\source\repos\PRank\Debug\PRank.exe
