@@ -1,16 +1,19 @@
+
 #include<iostream>
+#include<algorithm>
 #include<vector>
 #include<string>
 #include<fstream>
 using namespace std;
 vector<int> nodeList;
+const float constant = 0.8, beta = 0.5;
 int nodeCnt;
 bool graph[1000][1000];
-double indp[1000][1000][6];
-double outdp[1000][1000][6];
-double pRankDP[1000][1000][6];
+float indp[1000][1000][6];
+float outdp[1000][1000][6];
+float pRankDP[1000][1000][6];
 vector<int> in[1000], out[1000];
-double SimRank(const float constant, int p, int q, int step) {
+float SimRank(int p, int q, int step) {
 
 	if (indp[p][q][step] != 0) {
 		return indp[p][q][step] != -1 ? indp[p][q][step] : 0;
@@ -21,7 +24,7 @@ double SimRank(const float constant, int p, int q, int step) {
 		return p == q;
 	}
 
-	double ret = 0;
+	float ret = 0;
 	if (p == q)
 		ret = 1;
 
@@ -29,16 +32,17 @@ double SimRank(const float constant, int p, int q, int step) {
 		int pSize = in[p].size(), qSize = in[q].size();
 		for (int i = 0; i < pSize; i++) {
 			for (int j = 0; j < qSize; j++) {
-				ret += SimRank(constant, in[p][i], in[q][j], step - 1);
+				ret += SimRank(in[p][i], in[q][j], step - 1);
 			}
 		}
 		if (pSize * qSize != 0)
 			ret *= constant / (pSize * qSize);
 	}
+	//ret = round(ret * 100000) / 100000;
 	indp[p][q][step] = indp[q][p][step] = ret != 0 ? ret : -1;
 	return ret;
 }
-double rvsSimRank(const float constant, int p, int q, int step) {
+float rvsSimRank(int p, int q, int step) {
 
 	if (outdp[p][q][step] != 0) {
 		return outdp[p][q][step] != -1 ? outdp[p][q][step] : 0;
@@ -49,7 +53,7 @@ double rvsSimRank(const float constant, int p, int q, int step) {
 		return p == q;
 	}
 
-	double ret = 0;
+	float ret = 0;
 	if (p == q)
 		ret = 1;
 
@@ -57,16 +61,17 @@ double rvsSimRank(const float constant, int p, int q, int step) {
 		int pSize = out[p].size(), qSize = out[q].size();
 		for (int i = 0; i < pSize; i++) {
 			for (int j = 0; j < qSize; j++) {
-				ret += rvsSimRank(constant, out[p][i], out[q][j], step - 1);
+				ret += rvsSimRank(out[p][i], out[q][j], step - 1);
 			}
 		}
 		if (pSize * qSize != 0)
 			ret *= constant / (pSize * qSize);
 	}
+	//ret = round(ret * 100000) / 100000;
 	outdp[p][q][step] = outdp[q][p][step] = ret != 0 ? ret : -1;
 	return ret;
 }
-double pRank(const float constant, const float beta, int p, int q, int step) {
+float pRank(int p, int q, int step) {
 
 	if (pRankDP[p][q][step] != 0) {
 		return pRankDP[p][q][step] != -1 ? pRankDP[p][q][step] : 0;
@@ -76,29 +81,29 @@ double pRank(const float constant, const float beta, int p, int q, int step) {
 		return p == q;
 	}
 
-	double ret = 0;
+	float ret = 0;
 	if (p == q)
 		ret = 1;
 
 	else {
-		double inVal = 0, outVal = 0;
+		float inVal = 0, outVal = 0;
 		int pSize, qSize;
 
 		pSize = in[p].size();
 		qSize = in[q].size();
 		for (int i = 0; i < pSize; i++) {
 			for (int j = 0; j < qSize; j++) {
-				inVal += SimRank(constant, in[p][i], in[q][j], step - 1);
+				inVal += SimRank(in[p][i], in[q][j], step - 1);
 			}
 		}
-		if(pSize * qSize != 0)
+		if (pSize * qSize != 0)
 			inVal *= (constant * beta) / (pSize * qSize);
 
 		pSize = out[p].size();
 		qSize = out[q].size();
 		for (int i = 0; i < pSize; i++) {
 			for (int j = 0; j < qSize; j++) {
-				outVal += rvsSimRank(constant, out[p][i], out[q][j], step - 1);
+				outVal += rvsSimRank(out[p][i], out[q][j], step - 1);
 			}
 		}
 		if (pSize * qSize != 0)
@@ -106,23 +111,47 @@ double pRank(const float constant, const float beta, int p, int q, int step) {
 
 		ret = inVal + outVal;
 	}
+	//ret = round(ret * 100000) / 100000;
 	pRankDP[p][q][step] = pRankDP[q][p][step] = ret != 0 ? ret : -1;
 	return ret;
 }
-void compute_pRank(const float constant, float beta, int step) {
+void LookUpScore(int node_1, int node_2, int iterationNo) {
+	cout << pRank(node_1, node_2, iterationNo);
+}
+void compute_pRank(int step) {
 	string s = "ResultOnIteration_";
 	s += (char)(step + '0');
 	s += ".txt";
-	ofstream fout(s);
+
+	FILE *out;
+	fopen_s(&out, s.c_str(), "w");
+
 	for (int i = 0; i < nodeCnt; i++) {
 		for (int j = 0; j < nodeCnt; j++) {
-			fout << nodeList[i] << ',' << nodeList[j] << " :" << pRank(constant, beta, nodeList[i], nodeList[j], step) << '\n';
+			float val = pRank(nodeList[i], nodeList[j], step);
+			if (val != 0)
+				fprintf(out, "%d,%d : %.5f\n", nodeList[i], nodeList[j], val);
+
 		}
 	}
-	fout.close();
+	fclose(out);
+
 }
 
 int main(int argc, char **argv) {
+	bool compute = false, calc = false;
+	int node_1, node_2, iterationNo;
+	for (int i = 1; i < argc; i++) {
+		string str = argv[i];
+		if (str == "compute")
+			compute = true;
+		else if(!calc){
+			node_1 = atoi(argv[i]);
+			node_2 = atoi(argv[i + 1]);
+			iterationNo = atoi(argv[i + 2]);
+			calc = true;
+		}
+	}
 	int a, b;
 	ifstream fin("graph.txt");
 	int chk[1001];
@@ -135,7 +164,7 @@ int main(int argc, char **argv) {
 	}
 	fin.close();
 	nodeCnt = nodeList.size();
-
+	sort(nodeList.begin(), nodeList.end());
 	for (int i = 0; i < nodeCnt; i++) {
 		for (int j = 0; j < nodeCnt; j++) {
 			if (graph[nodeList[i]][nodeList[j]]) {
@@ -144,10 +173,10 @@ int main(int argc, char **argv) {
 			}
 		}
 	}
-	//cout << SimRank(0.8, 8, 9, 2);
-	//compute_pRank(0.8, 0.5, 2);
-	for (int i = 1; i <= 5; i++)
-		compute_pRank(0.8, 0.5, i);
-
-
+	if (calc) {
+		LookUpScore(node_1, node_2, iterationNo);
+	}
+	if(compute)
+		for (int i = 1; i <= 5; i++)
+			compute_pRank(i);
 }
